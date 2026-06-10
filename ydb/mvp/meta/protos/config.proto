@@ -12,6 +12,29 @@ message TMetaConfig {
 
     message TSupportLinksConfig {
         message TSupportLinkEntry {
+            message TRequestParamConfig {
+                // Target parameter name in the generated link.
+                optional string ForwardTo = 1;
+                // Explicitly disable forwarding of this request parameter for the current entity/source entry.
+                optional bool Forward = 2 [default = true];
+            }
+
+            message TRequestParamsConfig {
+                // Optional override for request parameter "cluster".
+                optional TRequestParamConfig Cluster = 1;
+                // Optional override for request parameter "database".
+                optional TRequestParamConfig Database = 2;
+            }
+
+            message TAdditionalParamConfig {
+                // Target parameter name in the generated link.
+                optional string Label = 1;
+                // Cluster info column name used as the parameter value.
+                optional string FromClusterInfo = 2;
+                // Constant parameter value.
+                optional string Value = 3;
+            }
+
             // Link source identifier (for example: grafana/dashboard/search).
             optional string Source = 1;
             // Optional display name shown in UI.
@@ -22,6 +45,12 @@ message TMetaConfig {
             repeated string Tag = 4;
             // Grafana folder UID filters (for source=grafana/dashboard/search).
             repeated string Folder = 5;
+            // Optional request parameter forwarding overrides merged over source/entity defaults.
+            // Omitted supported parameters keep their default behavior.
+            optional TRequestParamsConfig RequestParams = 6;
+            // Additional parameters appended by the source.
+            // When specified, replace source defaults completely.
+            repeated TAdditionalParamConfig AdditionalParams = 7;
         }
         // Support links resolved for cluster entity.
         repeated TSupportLinkEntry Cluster = 1;

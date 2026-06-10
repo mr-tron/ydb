@@ -1,5 +1,6 @@
 #pragma once
 
+#include "param_bindings.h"
 #include "source_common.h"
 #include "types.h"
 
@@ -7,22 +8,8 @@
 
 namespace NMVP::NSupportLinks {
 
-inline constexpr TStringBuf GRAFANA_WORKSPACE_KEY = "k8s_namespace";
-inline constexpr TStringBuf GRAFANA_DATASOURCE_KEY = "datasource";
-
-inline void ApplyGrafanaDashboardClusterBindings(
-    TCgiParameters& queryParameters,
-    const THashMap<TString, TString>& clusterInfo)
-{
-    const auto workspaceIt = clusterInfo.find(GRAFANA_WORKSPACE_KEY);
-    if (workspaceIt != clusterInfo.end() && !workspaceIt->second.empty()) {
-        queryParameters.InsertUnescaped("var-workspace", workspaceIt->second);
-    }
-
-    const auto datasourceIt = clusterInfo.find(GRAFANA_DATASOURCE_KEY);
-    if (datasourceIt != clusterInfo.end() && !datasourceIt->second.empty()) {
-        queryParameters.InsertUnescaped("var-ds", datasourceIt->second);
-    }
+inline TVector<TAdditionalParamBinding> BuildDefaultGrafanaDashboardAdditionalParamBindings() {
+    return {};
 }
 
 inline std::pair<TString, TCgiParameters> BuildGrafanaDashboardUrlParts(
@@ -43,24 +30,18 @@ inline std::pair<TString, TCgiParameters> BuildGrafanaDashboardUrlParts(
     return {std::move(path), std::move(queryParameters)};
 }
 
-inline TCgiParameters BuildRequestQueryParameters(const NHttp::TUrlParameters& urlParameters)
-{
-    TCgiParameters queryParameters;
-    for (const auto& parameter : urlParameters.Parameters) {
-        queryParameters.InsertUnescaped(parameter.first, urlParameters[parameter.first]);
-    }
-    return queryParameters;
-}
-
 inline void ApplyGrafanaDashboardBindingPolicy(
     TCgiParameters& queryParameters,
     const THashMap<TString, TString>& clusterInfo,
-    const TCgiParameters& requestQueryParameters)
+    const NHttp::TUrlParameters& requestUrlParameters,
+    const TResolvedParamBindings& paramBindings)
 {
-    ApplyGrafanaDashboardClusterBindings(queryParameters, clusterInfo);
+    for (const auto& [label, value] : BuildAdditionalParamValues(clusterInfo, paramBindings.AdditionalParams)) {
+        queryParameters.InsertUnescaped(TStringBuilder() << "var-" << label, value);
+    }
 
-    for (const auto& [name, value] : requestQueryParameters) {
-        queryParameters.InsertUnescaped(TStringBuilder() << "var-" << name, value);
+    for (const auto& [label, value] : BuildRequestParamValues(requestUrlParameters, paramBindings.RequestParams)) {
+        queryParameters.InsertUnescaped(TStringBuilder() << "var-" << label, value);
     }
 }
 
@@ -68,27 +49,22 @@ inline TString BuildGrafanaDashboardUrl(
     TStringBuf grafanaEndpoint,
     TStringBuf url,
     const THashMap<TString, TString>& clusterInfo,
-    const TCgiParameters& requestQueryParameters)
+    const NHttp::TUrlParameters& requestUrlParameters,
+    const TResolvedParamBindings& paramBindings)
 {
     auto [path, queryParameters] = BuildGrafanaDashboardUrlParts(grafanaEndpoint, url);
-    ApplyGrafanaDashboardBindingPolicy(queryParameters, clusterInfo, requestQueryParameters);
+    ApplyGrafanaDashboardBindingPolicy(queryParameters, clusterInfo, requestUrlParameters, paramBindings);
 
     return queryParameters.empty()
         ? path
         : TStringBuilder() << path << '?' << queryParameters.Print();
 }
 
-inline TString BuildGrafanaDashboardUrl(
-    TStringBuf grafanaEndpoint,
-    TStringBuf url,
-    const THashMap<TString, TString>& clusterInfo,
-    const NHttp::TUrlParameters& requestUrlParameters)
+inline TResolvedParamBindings ResolveGrafanaDashboardParamBindings(
+    const TSupportLinkEntryConfig& config,
+    ESupportLinksEntityType entityType)
 {
-    return BuildGrafanaDashboardUrl(
-        grafanaEndpoint,
-        url,
-        clusterInfo,
-        BuildRequestQueryParameters(requestUrlParameters));
+    return ResolveParamBindings(config, entityType, BuildDefaultGrafanaDashboardAdditionalParamBindings());
 }
 
 } // namespace NMVP::NSupportLinks

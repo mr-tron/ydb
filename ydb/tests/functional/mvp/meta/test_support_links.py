@@ -8,11 +8,9 @@ from support_links_env import (
     ABSOLUTE_GRAFANA_DASHBOARD_URL,
     CLUSTER_NAME,
     DATABASE_NAME,
-    DATASOURCE_ID,
     MISSING_CLUSTER_ERROR,
     MISSING_CLUSTER_NAME,
     MISSING_CLUSTER_PARAMETER_ERROR,
-    WORKSPACE_NAME,
     start_cluster_with_meta_table,
     start_meta_support_links_service,
     started_meta_support_links_env,
@@ -78,24 +76,14 @@ def assert_urls_match(actual_url, expected_url):
 
 
 def grafana_url_with_cluster(cluster_name=CLUSTER_NAME, extra_query=""):
-    url = (
-        "https://grafana.example.test/d/ydb/overview"
-        f"?var-workspace={WORKSPACE_NAME}"
-        f"&var-ds={DATASOURCE_ID}"
-        f"&var-cluster={cluster_name}"
-    )
+    url = "https://grafana.example.test/d/ydb/overview" f"?var-cluster={cluster_name}"
     if extra_query:
         url += f"&{extra_query}"
     return url
 
 
 def external_grafana_url(extra_query=""):
-    url = (
-        "https://external.example.test/d/ydb/overview"
-        f"?var-workspace={WORKSPACE_NAME}"
-        f"&var-ds={DATASOURCE_ID}"
-        f"&var-cluster={CLUSTER_NAME}"
-    )
+    url = "https://external.example.test/d/ydb/overview" f"?var-cluster={CLUSTER_NAME}"
     if extra_query:
         url += f"&{extra_query}"
     return url
@@ -168,11 +156,7 @@ def test_meta_support_links_does_not_start_with_invalid_config():
         pytest.param(
             SupportLinksConfigCase(
                 env_kwargs={"datasource": ""},
-                expected_url=(
-                    "https://grafana.example.test/d/ydb/overview"
-                    f"?var-workspace={WORKSPACE_NAME}"
-                    f"&var-cluster={CLUSTER_NAME}"
-                ),
+                expected_url=grafana_url_with_cluster(),
             ),
             id="empty-datasource",
         ),

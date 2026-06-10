@@ -39,6 +39,16 @@ meta:
         url: /d/ydb_database/overview
       - source: grafana/logging
         title: Database Logs
+        request_params:
+          cluster:
+            forward: false
+          database:
+            forward_to: db
+        additional_params:
+          - label: __workspace__
+            from_cluster_info: k8s_namespace
+          - label: __bucket__
+            value: ydb
       - source: grafana/dashboard/search
         tag:
           - ui-database

@@ -10,14 +10,18 @@
 
 namespace {
 
-    std::shared_ptr<NMVP::ILinkSource> MakeTestLinkSource(NMVP::TSupportLinkEntryConfig config, const NMVP::TMetaSettings& settings) {
+    std::shared_ptr<NMVP::ILinkSource> MakeTestLinkSource(
+        NMVP::TSupportLinkEntryConfig config,
+        NMVP::ESupportLinksEntityType entityType,
+        const NMVP::TMetaSettings& settings)
+    {
         if (config.GetSource() == "mock/sync") {
-            return NMVP::NTest::MakeMockLinkSourceSync(std::move(config));
+            return NMVP::NTest::MakeMockLinkSourceSync(std::move(config), entityType, settings);
         }
         if (config.GetSource() == "mock/async") {
-            return NMVP::NTest::MakeMockLinkSourceAsync(std::move(config));
+            return NMVP::NTest::MakeMockLinkSourceAsync(std::move(config), entityType, settings);
         }
-        return NMVP::MakeLinkSource(std::move(config), settings);
+        return NMVP::MakeLinkSource(std::move(config), entityType, settings);
     }
 
 } // namespace

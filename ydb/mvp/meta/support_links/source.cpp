@@ -9,45 +9,53 @@ namespace NMVP {
 
 void ValidateSupportLinksConfig(const TSupportLinksConfig& supportLinks, const TMetaSettings& metaSettings) {
     for (int i = 0; i < supportLinks.GetCluster().size(); ++i) {
-        ValidateLinkSourceConfig(supportLinks.GetCluster(i), metaSettings);
+        ValidateLinkSourceConfig(supportLinks.GetCluster(i), ESupportLinksEntityType::Cluster, metaSettings);
     }
     for (int i = 0; i < supportLinks.GetDatabase().size(); ++i) {
-        ValidateLinkSourceConfig(supportLinks.GetDatabase(i), metaSettings);
+        ValidateLinkSourceConfig(supportLinks.GetDatabase(i), ESupportLinksEntityType::Database, metaSettings);
     }
 }
 
-void ValidateLinkSourceConfig(const TSupportLinkEntryConfig& config, const TMetaSettings& metaSettings) {
+void ValidateLinkSourceConfig(
+    const TSupportLinkEntryConfig& config,
+    ESupportLinksEntityType entityType,
+    const TMetaSettings& metaSettings)
+{
     if (config.GetSource().empty()) {
         ythrow yexception() << "source is required";
     }
 
     if (config.GetSource() == "grafana/dashboard") {
-        ValidateGrafanaDashboardSourceConfig(config, metaSettings);
+        ValidateGrafanaDashboardSourceConfig(config, entityType, metaSettings);
         return;
     }
     if (config.GetSource() == "grafana/dashboard/search") {
-        ValidateGrafanaDashboardSearchSourceConfig(config, metaSettings);
+        ValidateGrafanaDashboardSearchSourceConfig(config, entityType, metaSettings);
         return;
     }
     if (config.GetSource() == "grafana/logging") {
-        ValidateGrafanaLoggingSourceConfig(config, metaSettings);
+        ValidateGrafanaLoggingSourceConfig(config, entityType, metaSettings);
         return;
     }
 
     ythrow yexception() << "unsupported support_links source: " << config.GetSource();
 }
 
-std::shared_ptr<ILinkSource> MakeLinkSource(TSupportLinkEntryConfig config, const TMetaSettings& metaSettings) {
-    ValidateLinkSourceConfig(config, metaSettings);
+std::shared_ptr<ILinkSource> MakeLinkSource(
+    TSupportLinkEntryConfig config,
+    ESupportLinksEntityType entityType,
+    const TMetaSettings& metaSettings)
+{
+    ValidateLinkSourceConfig(config, entityType, metaSettings);
 
     if (config.GetSource() == "grafana/dashboard") {
-        return MakeGrafanaDashboardSource(std::move(config), metaSettings);
+        return MakeGrafanaDashboardSource(std::move(config), entityType, metaSettings);
     }
     if (config.GetSource() == "grafana/dashboard/search") {
-        return MakeGrafanaDashboardSearchSource(std::move(config), metaSettings);
+        return MakeGrafanaDashboardSearchSource(std::move(config), entityType, metaSettings);
     }
     if (config.GetSource() == "grafana/logging") {
-        return MakeGrafanaLoggingSource(std::move(config), metaSettings);
+        return MakeGrafanaLoggingSource(std::move(config), entityType, metaSettings);
     }
 
     ythrow yexception() << "unsupported support_links source: " << config.GetSource();

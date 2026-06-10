@@ -174,4 +174,31 @@ meta:
         );
     }
 
+    Y_UNIT_TEST(RejectsUnsupportedRequestParamOverrideForEntity) {
+        const TString yaml = R"(
+generic:
+  access_service_type: "yandex_v2"
+meta:
+  meta_api_endpoint: "grpc://meta.ydb.example.net:2135"
+  meta_database: "/Root/meta"
+  grafana:
+    endpoint: "https://grafana.example.net"
+  support_links:
+    cluster:
+      - source: "grafana/dashboard"
+        title: "Cluster Overview"
+        url: "/d/cluster/overview"
+        request_params:
+          database:
+            forward_to: "database"
+)";
+        const NMvp::NMeta::TMetaAppConfig appConfig = ParseConfig(yaml);
+        auto mvp = MakeTestMvp();
+        UNIT_ASSERT_EXCEPTION_CONTAINS(
+            mvp.TryGetMetaOptionsFromConfig(appConfig),
+            yexception,
+            "request_params.database is not supported for entity=cluster and source=grafana/dashboard"
+        );
+    }
+
 }

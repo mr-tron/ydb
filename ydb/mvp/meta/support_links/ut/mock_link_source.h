@@ -79,11 +79,19 @@ private:
     TSupportLinkEntryConfig SourceConfig;
 };
 
-inline std::shared_ptr<ILinkSource> MakeMockLinkSourceSync(TSupportLinkEntryConfig config) {
+inline std::shared_ptr<ILinkSource> MakeMockLinkSourceSync(
+    TSupportLinkEntryConfig config,
+    ESupportLinksEntityType,
+    const TMetaSettings&)
+{
     return std::make_shared<TMockLinkSourceSync>(std::move(config));
 }
 
-inline std::shared_ptr<ILinkSource> MakeMockLinkSourceAsync(TSupportLinkEntryConfig config) {
+inline std::shared_ptr<ILinkSource> MakeMockLinkSourceAsync(
+    TSupportLinkEntryConfig config,
+    ESupportLinksEntityType,
+    const TMetaSettings&)
+{
     return std::make_shared<TMockLinkSourceAsync>(std::move(config));
 }
 

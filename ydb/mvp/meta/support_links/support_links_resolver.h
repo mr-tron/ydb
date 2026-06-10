@@ -13,10 +13,7 @@ namespace NMVP {
 
 class TSupportLinksResolver {
 public:
-    enum class EEntityType {
-        Cluster,
-        Database,
-    };
+    using EEntityType = ESupportLinksEntityType;
 
     struct TParams {
         EEntityType EntityType = EEntityType::Cluster;

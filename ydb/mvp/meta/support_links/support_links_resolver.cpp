@@ -20,7 +20,7 @@ TVector<std::shared_ptr<ILinkSource>> BuildSources(const TSupportLinksResolver::
     TVector<std::shared_ptr<ILinkSource>> linkSources;
     linkSources.reserve(linkConfigs.size());
     for (const auto& linkConfig : linkConfigs) {
-        linkSources.push_back(params.LinkSourceFactory(linkConfig, *params.Settings));
+        linkSources.push_back(params.LinkSourceFactory(linkConfig, params.EntityType, *params.Settings));
     }
     return linkSources;
 }

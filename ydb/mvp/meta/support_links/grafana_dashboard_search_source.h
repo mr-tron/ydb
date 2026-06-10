@@ -27,15 +27,17 @@ public:
     TGrafanaDashboardSearchActor(
         TSupportLinkEntryConfig config,
         TString grafanaEndpoint,
+        TResolvedParamBindings paramBindings,
         const THashMap<TString, TString>& clusterInfo,
-        TCgiParameters requestQueryParameters,
+        NHttp::TUrlParameters requestUrlParameters,
         NActors::TActorId owner,
         NActors::TActorId httpProxyId,
         size_t place)
         : Config(std::move(config))
         , GrafanaEndpoint(std::move(grafanaEndpoint))
+        , ParamBindings(std::move(paramBindings))
         , ClusterInfo(clusterInfo)
-        , RequestQueryParameters(std::move(requestQueryParameters))
+        , RequestUrlParameters(std::move(requestUrlParameters))
         , Owner(owner)
         , HttpProxyId(httpProxyId)
         , Place(place)
@@ -61,8 +63,9 @@ public:
 private:
     TSupportLinkEntryConfig Config;
     TString GrafanaEndpoint;
+    TResolvedParamBindings ParamBindings;
     THashMap<TString, TString> ClusterInfo;
-    TCgiParameters RequestQueryParameters;
+    NHttp::TUrlParameters RequestUrlParameters;
     NActors::TActorId Owner;
     NActors::TActorId HttpProxyId;
     size_t Place = 0;
@@ -156,7 +159,8 @@ private:
                 GrafanaEndpoint,
                 dashboardUrl,
                 ClusterInfo,
-                RequestQueryParameters);
+                RequestUrlParameters,
+                ParamBindings);
             if (!resolvedUrl.empty()) {
                 Links.emplace_back(TResolvedLink{
                     .Title = std::move(title),
@@ -187,9 +191,13 @@ namespace NMVP {
 
 class TGrafanaDashboardSearchSource : public ILinkSource {
 public:
-    TGrafanaDashboardSearchSource(TSupportLinkEntryConfig config, TString grafanaEndpoint)
+    TGrafanaDashboardSearchSource(
+        TSupportLinkEntryConfig config,
+        TString grafanaEndpoint,
+        NSupportLinks::TResolvedParamBindings paramBindings)
         : Config(std::move(config))
         , GrafanaEndpoint(std::move(grafanaEndpoint))
+        , ParamBindings(std::move(paramBindings))
     {}
 
     TResolveOutput Resolve(const TLinkResolveInput& input, const TResolveContext& context) const override {
@@ -200,8 +208,9 @@ public:
             new NSupportLinks::TGrafanaDashboardSearchActor(
                 Config,
                 GrafanaEndpoint,
+                ParamBindings,
                 input.ClusterInfo,
-                NSupportLinks::BuildRequestQueryParameters(input.UrlParameters),
+                input.UrlParameters,
                 context.Owner,
                 context.HttpProxyId,
                 context.Place),
@@ -212,22 +221,36 @@ public:
 private:
     TSupportLinkEntryConfig Config;
     TString GrafanaEndpoint;
+    NSupportLinks::TResolvedParamBindings ParamBindings;
 };
 
-inline void ValidateGrafanaDashboardSearchSourceConfig(const TSupportLinkEntryConfig& config, const TMetaSettings& metaSettings) {
+inline void ValidateGrafanaDashboardSearchSourceConfig(
+    const TSupportLinkEntryConfig& config,
+    ESupportLinksEntityType entityType,
+    const TMetaSettings& metaSettings)
+{
     if (metaSettings.SupportLinks.GrafanaEndpoint.empty()) {
         ythrow yexception() << "grafana.endpoint is required for source=" << config.GetSource();
     }
     if (TMVP::MetaDatabaseTokenName.empty()) {
         ythrow yexception() << "meta.meta_database_token_name is required for source=" << config.GetSource();
     }
+    NSupportLinks::ValidateResolvedParamBindings(
+        NSupportLinks::ResolveGrafanaDashboardParamBindings(config, entityType),
+        config);
 }
 
-inline std::shared_ptr<ILinkSource> MakeGrafanaDashboardSearchSource(TSupportLinkEntryConfig config, const TMetaSettings& metaSettings) {
-    ValidateGrafanaDashboardSearchSourceConfig(config, metaSettings);
+inline std::shared_ptr<ILinkSource> MakeGrafanaDashboardSearchSource(
+    TSupportLinkEntryConfig config,
+    ESupportLinksEntityType entityType,
+    const TMetaSettings& metaSettings)
+{
+    ValidateGrafanaDashboardSearchSourceConfig(config, entityType, metaSettings);
+    auto paramBindings = NSupportLinks::ResolveGrafanaDashboardParamBindings(config, entityType);
     return std::make_shared<TGrafanaDashboardSearchSource>(
         std::move(config),
-        metaSettings.SupportLinks.GrafanaEndpoint
+        metaSettings.SupportLinks.GrafanaEndpoint,
+        std::move(paramBindings)
     );
 }
 

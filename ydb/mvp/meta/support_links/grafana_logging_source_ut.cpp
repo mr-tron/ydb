@@ -45,6 +45,7 @@ NJson::TJsonValue ParseJson(TStringBuf body) {
 struct TGrafanaLoggingTestContext {
     NMVP::TSupportLinkEntryConfig Config;
     NMVP::TMetaSettings Settings;
+    NMVP::ESupportLinksEntityType EntityType = NMVP::ESupportLinksEntityType::Database;
     THashMap<TString, TString> ClusterInfo;
     NHttp::TUrlParametersBuilder UrlParameters;
     NMVP::ILinkSource::TLinkResolveInput Input;
@@ -70,7 +71,7 @@ struct TGrafanaLoggingTestContext {
     {}
 
     std::shared_ptr<NMVP::ILinkSource> CreateSource() const {
-        return NMVP::MakeGrafanaLoggingSource(Config, Settings);
+        return NMVP::MakeGrafanaLoggingSource(Config, EntityType, Settings);
     }
 
     NMVP::TResolveOutput Resolve() const {
@@ -169,10 +170,10 @@ Y_UNIT_TEST_SUITE(SupportLinksGrafanaLoggingSource) {
         );
     }
 
-    Y_UNIT_TEST(ResolveSkipsRequestParametersOtherThanDatabase) {
+    Y_UNIT_TEST(ResolveUsesDefaultClusterAndDatabaseRequestParameters) {
         TGrafanaLoggingTestContext context;
         context.ClusterInfo["datasource_logging"] = "ds-42";
-        context.UrlParameters = MakeUrlParameters("cluster=ignored-cluster&custom_label=ignored&database=%2Fnew%2Fdb");
+        context.UrlParameters = MakeUrlParameters("cluster=ydb-global&custom_label=ignored&database=%2Fnew%2Fdb");
         auto result = context.Resolve();
 
         UNIT_ASSERT_VALUES_EQUAL(result.Links.size(), 1u);
@@ -180,15 +181,15 @@ Y_UNIT_TEST_SUITE(SupportLinksGrafanaLoggingSource) {
         AssertPanesQuery(
             result.Links[0].Url,
             "https://grafana.example.net/explore",
-            "{database=\"/new/db\"}",
+            "{cluster=\"ydb-global\", database=\"/new/db\"}",
             "ds-42"
         );
     }
 
-    Y_UNIT_TEST(ResolveDoesNotRequireWorkspace) {
+    Y_UNIT_TEST(ResolveDoesNotRequireAdditionalParams) {
         TGrafanaLoggingTestContext context;
         context.ClusterInfo["datasource_logging"] = "ds-42";
-        context.UrlParameters = MakeUrlParameters("database=%2Fnew%2Fdb");
+        context.UrlParameters = MakeUrlParameters("cluster=ydb-global");
         auto result = context.Resolve();
 
         UNIT_ASSERT_VALUES_EQUAL(result.Links.size(), 1u);
@@ -196,7 +197,7 @@ Y_UNIT_TEST_SUITE(SupportLinksGrafanaLoggingSource) {
         AssertPanesQuery(
             result.Links[0].Url,
             "https://grafana.example.net/explore",
-            "{database=\"/new/db\"}",
+            "{cluster=\"ydb-global\"}",
             "ds-42"
         );
     }
@@ -217,6 +218,44 @@ Y_UNIT_TEST_SUITE(SupportLinksGrafanaLoggingSource) {
             context.CreateSource(),
             yexception,
             "query parameters are not supported in url for source=grafana/logging"
+        );
+    }
+
+    Y_UNIT_TEST(ResolveAppliesRequestParamOverrides) {
+        TGrafanaLoggingTestContext context;
+        context.ClusterInfo["datasource_logging"] = "ds-42";
+        context.Config.MutableRequestParams()->MutableCluster()->SetForward(false);
+        context.Config.MutableRequestParams()->MutableDatabase()->SetForwardTo("db_path");
+        context.UrlParameters = MakeUrlParameters("cluster=ydb-global&database=%2Fnew%2Fdb");
+        auto result = context.Resolve();
+
+        UNIT_ASSERT_VALUES_EQUAL(result.Links.size(), 1u);
+        UNIT_ASSERT_VALUES_EQUAL(result.Errors.size(), 0u);
+        AssertPanesQuery(
+            result.Links[0].Url,
+            "https://grafana.example.net/explore",
+            "{db_path=\"/new/db\"}",
+            "ds-42"
+        );
+    }
+
+    Y_UNIT_TEST(ResolveAddsConfiguredAdditionalParams) {
+        TGrafanaLoggingTestContext context;
+        context.ClusterInfo["custom_namespace"] = "custom-workspace";
+        context.ClusterInfo["datasource_logging"] = "ds-42";
+        auto* additionalParam = context.Config.AddAdditionalParams();
+        additionalParam->SetLabel("workspace");
+        additionalParam->SetFromClusterInfo("custom_namespace");
+        context.UrlParameters = MakeUrlParameters("cluster=ydb-global");
+        auto result = context.Resolve();
+
+        UNIT_ASSERT_VALUES_EQUAL(result.Links.size(), 1u);
+        UNIT_ASSERT_VALUES_EQUAL(result.Errors.size(), 0u);
+        AssertPanesQuery(
+            result.Links[0].Url,
+            "https://grafana.example.net/explore",
+            "{cluster=\"ydb-global\", workspace=\"custom-workspace\"}",
+            "ds-42"
         );
     }
 }
